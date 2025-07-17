@@ -1,0 +1,26 @@
+- name: Remove Cowsay
+  hosts: all
+  tasks:
+    - name: Remove epel-release
+      ansible.builtin.package:
+        name: epel-release
+        state: absent 
+
+    - name: Remove cowsay
+      ansible.builtin.package:
+        name: cowsay
+        state: absent 
+
+- name: Install cowsay and btop 
+  hosts: all
+  tasks:
+    - name: Install epel-release
+      ansible.builtin.package:
+        name: epel-release
+        state: present
+    - name: Install cowsay and btop
+      ansible.builtin.package:
+        name:
+          - cowsay
+          - btop
+        state: present 

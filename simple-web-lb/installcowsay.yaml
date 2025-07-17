@@ -1,0 +1,15 @@
+- name: Install Cowsay
+  hosts: all
+  tasks:
+    - name: Install epel-release
+      ansible.builtin.package:
+        name: epel-release
+        state: present
+
+    - name: Install cowsay
+      ansible.builtin.package:
+        name: cowsay
+        state: present
+
+    - name: Run cowsay
+      ansible.builtin.command: cowsay 'moo'

@@ -1,0 +1,19 @@
+- name: Test play
+  hosts: all
+  tasks:
+    - name: Ping hosts
+      ansible.builtin.ping:
+
+    - name: Print message
+      ansible.builtin.debug:
+        msg: Ansible is in
+
+    - name: Check package info
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Print vim version
+      ansible.builtin.debug:
+        msg: "VIM is installed, version: {{ ansible_facts.packages['vim-common'][0].version }}"
+      when: "'vim-common' in ansible_facts.packages"
+
