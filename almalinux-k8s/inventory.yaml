@@ -1,0 +1,13 @@
+k8s-masters:
+  hosts:
+    k8s-master-1:
+      ansible_host: 192.168.56.10
+      ansible_user: k8sadmin
+k8s-workers:
+  hosts:
+    k8s-worker-1:
+      ansible_host: 192.168.56.11
+      ansible_user: k8sadmin
+    k8s-worker-2:
+      ansible_host: 192.168.56.12
+      ansible_user: k8sadmin

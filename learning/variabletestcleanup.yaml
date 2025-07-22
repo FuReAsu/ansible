@@ -1,0 +1,15 @@
+- name: Test variables Cleanup
+  hosts: ansible_nodes
+  tasks:
+    - name: Remove packages
+      ansible.builtin.package:
+        name: '{{ app_list }}'
+        state: absent 
+    - name: Delete user account
+      ansible.builtin.user:
+        name: '{{ user_details.username }}'
+        state: absent
+    - name: Delete group
+      ansible.builtin.group:
+        name: '{{ user_details.group }}'
+        state: absent
