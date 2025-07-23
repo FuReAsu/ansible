@@ -1,0 +1,13 @@
+- name: Install Web Server on ansible nodes
+  hosts: ansible_nodes
+  tasks:
+    - name: Install Web Server on alma nodes
+      ansible.builtin.dnf:
+        name: httpd
+        state: absent
+      when: ansible_facts['os_family'] == 'RedHat'
+    - name: Install Web Server on ubuntu nodes
+      ansible.builtin.apt:
+        name: apache2
+        state: absent
+      when: ansible_facts['os_family'] == 'Debian'

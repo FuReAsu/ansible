@@ -1,0 +1,32 @@
+ansible_nodes:
+  children:
+    alma:
+      hosts:
+        ansible-node-1:
+          ansible_host: 192.168.11.21
+          ansible_user: root
+        ansible-node-2:
+          ansible_host: 192.168.11.22
+          ansible_user: root
+        ansible-node-3:
+          ansible_host: 192.168.11.23
+          ansible_user: root
+    ubuntu:
+      hosts:
+        ansible-node-4:
+          ansible_host: 192.168.11.24
+          ansible_user: root
+        ansible-node-5:
+          ansible_host: 192.168.11.25
+          ansible_user: root
+  vars: 
+    app_list:
+      - vim
+      - git
+      - jq
+    user_details:
+      username: 'bob'
+      group: 'developers'
+      email: 'user@email.com'
+    name_server: 192.168.122.1
+    ntp_server: 192.168.122.1
