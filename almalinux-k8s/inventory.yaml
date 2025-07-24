@@ -1,13 +1,24 @@
-k8s-masters:
-  hosts:
-    k8s-master-1:
-      ansible_host: 192.168.56.10
-      ansible_user: k8sadmin
-k8s-workers:
-  hosts:
-    k8s-worker-1:
-      ansible_host: 192.168.56.11
-      ansible_user: k8sadmin
-    k8s-worker-2:
-      ansible_host: 192.168.56.12
-      ansible_user: k8sadmin
+k8s_nodes:
+  children:
+    k8s_masters:
+      hosts:
+        k8s-master-1:
+          ansible_host: 192.168.56.10
+          ansible_user: k8sadmin
+    k8s_workers:
+      hosts:
+        k8s-worker-1:
+          ansible_host: 192.168.56.11
+          ansible_user: k8sadmin
+        k8s-worker-2:
+          ansible_host: 192.168.56.12
+          ansible_user: k8sadmin
+  vars:
+    ntp_server: 172.21.0.123
+    k8s_ver: v1.33
+    crio_ver: v1.33
+    kernel_modules_to_load:
+      - overlay
+      - br_netfilter
+      - iptable_nat
+      - vxlan

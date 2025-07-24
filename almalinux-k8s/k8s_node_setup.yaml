@@ -1,0 +1,250 @@
+- name: K8S Prerequisites - NTP, SE, and Firewall
+  hosts: k8s_nodes
+  become: true
+  tasks:
+    - name: Disable SELINUX and install Chrony on RedHat like nodes 
+      when: ansible_facts['os_family'] is 'RedHat'
+      block:
+        - name: Disable Selinux
+          ansible.posix.selinux:
+            state: disabled
+        
+        - name: Disable Selinux (Persistent)
+          ansible.builtin.lineinfile:
+            path: /etc/selinux/config
+            search_string: 'SELINUX=enforcing'
+            line: 'SELINUX=permissive'
+
+        - name: Install Chrony on RedHat like hosts
+          ansible.builtin.dnf:
+            name: chrony
+            state: present
+
+        - name: Add ntp server address on RedHat like nodes
+          ansible.builtin.lineinfile:
+            path: /etc/chrony.conf
+            search_string: 'server'
+            line: 'server {{ ntp_server }} iburst'
+
+    - name: Install Chrony on Debian like nodes 
+      when: ansible_facts['os_family'] is 'Debian'
+      block:
+        - name: Install Chrony on Debian like hosts
+          ansible.builtin.apt:
+            name: chrony
+            state: present
+
+        - name: Add ntp server address on Debian like nodes
+          when: ansible_facts['os_family'] is 'Debian'
+          ansible.builtin.lineinfile:
+            path: /etc/chrony/chrony.conf
+            search_string: 'server'
+            line: 'server {{ ntp_server }} iburst'
+
+    - name: Start and enable Chrony Service on all nodes
+      ansible.builtin.service:
+        name: chronyd
+        state: reloaded
+        enabled: true
+
+    - name: Disable firewall on RedHat like nodes
+      when: ansible_facts['os_family'] is 'RedHat'
+      ansible.builtin.service:
+        name: firewalld
+        state: stopped
+        enabled: false
+
+    - name: Disable firewall on Debian like nodes
+      when: ansible_facts['os_family'] is 'Debian'
+      community.general.ufw:
+        state: disabled
+
+- name: K8S Prerequisites Kernel Modules and System Config
+  hosts: all
+  become: true
+  tasks:
+    - name: Load Kernel Modules
+      community.general.modprobe:
+        name: {{ item }}
+        state: present
+      loop: {{ kernel_modules_to_load }}
+
+    - name: Make Kernel Modules Persistent
+      ansible.builtin.template:
+        src: kernel_modules_load.j2
+        dest: /etc/modules-load.d/k8s.conf
+        owner: root
+        group: root
+        mode: '644'
+
+- name: K8S Installation
+  hosts: all
+  become: true
+  tasks:
+    - name: Add K8S and CRIO repo on RedHat like nodes
+      when: ansible_facts['os_family'] is 'RedHat'
+      block:
+        - name: Add K8S repo
+          ansible.builtin.yum_repository:
+            name: k8s
+            description: kubernetes repository
+            baseurl: https://pkgs.k8s.io/core:/stable:/{{ k8s_ver }}/rpm/
+            gpgcheck: yes
+            gpgkey: https://pkgs.k8s.io/core:/stable:/{{ k8s_ver }}/rpm/repodata/repomd.xml.key
+        
+        - name: Add CRIO repo
+          ansible.builtin.yum_repository:
+            name: crio
+            description: crio repository
+            baseurl: https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_ver }}/rpm/
+            gpgcheck: yes
+            gpgkey: https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_ver }}/rpm/repodata/repomd.xml.key
+
+        - name: Update dnf cache
+          ansible.builtin.dnf:
+            update_cache: yes
+
+    - name: Add K8S and CRIO repo on Debian like nodes
+      when: ansible_facts['os_family'] is 'Debian'
+      block:
+        - name: Get K8S repo gpg key
+          ansible.builtin.get_url:
+            url: https://pkgs.k8s.io/core:/stable:/{{ k8s_ver }}/deb/Release.key
+            dest: /tmp/k8s-apt-keyring.key
+            mode: '644'
+          register: get_k8s_repo_key
+
+        - name: Add K8S repo gpg key
+          when: get_k8s_repo_key is succeeded
+          ansible.builtin.shell: |
+            gpg --dearmor -o /etc/apt/keyrings/k8s-apt-keyring.gpg /tmp/k8s-apt-keyring.key
+            args:
+              creates: /etc/apt/keyrings/k8s-apt-keyring.gpg
+
+        - name: Add K8S repo
+          ansible.builtin.apt_repository:
+            repo: deb [signed-by=/etc/apt/keyrings/k8s-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ k8s_ver }}/deb/ /
+            state: present
+            filename: k8s
+
+        - name: Get CRIO repo gpg key
+          ansible.builtin.get_url:
+            url: https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_ver }}/deb/Release.key 
+            dest: /tmp/crio-apt-keyring.key
+            mode: '644'
+          register: get_crio_repo_key
+
+        - name: Add CRIO repo key
+          when: get_crio_repo_key is succeeded
+          ansible.builtin.shell: |
+            gpg --dearmor -o /etc/apt/keyrings/crio-apt-keyring.gpg /tmp/crio-apt-keyring.key
+            args:
+              creates: /etc/apt/keyrings/crio-apt-keyring.key
+
+        - name: Add CRIO repo
+          ansible.builtin.apt_repository:
+            repo: deb [signed-by=/etc/apt/keyrings/crio-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_ver }}/deb/ /
+            state: present
+            filename: crio
+
+        - name: Update apt cache
+          ansible.builtin.apt:
+            update_cache: yes
+
+    - name: Install CRIO and K8S on RedHat like nodes
+      when: ansible_facts['os_family'] is 'RedHat'
+      block:
+        - name: Install CRIO
+          ansible.builtin.dnf:
+            name: cri-o
+            state: present
+          register: crio_install
+
+        - name: Exclude CRIO package from updates
+          when: crio_install is succeeded
+          community.general.ini_files:
+            path: /etc/yum.repos.d/crio.repo
+            section: crio
+            option: exclude
+            value: cri-o
+
+        - name: Start and enable CRIO
+          when: crio_install is succeeded
+          ansible.builtin.service:
+            name: crio
+            state: started
+            enabled: yes
+          
+        - name: Install K8S components
+          ansible.builtin.dnf:
+            name: 
+              - kubectl
+              - kubeadm
+              - kubelet
+            state: present
+          register: k8s_components_install
+
+        - name: Exclude K8S components packages from updates
+          when: k8s_components_install is succeeded
+          community.general.ini_files:
+            path: /etc/yum.repos.d/k8s.repo
+            section: k8s
+            option: exclude
+            value: kubeadm kubelet kubectl cri-tools
+
+        - name: Start and enable Kubelet
+          when: k8s_components_install is succeeded
+          ansible.builtin.service:
+            name: kubelet
+            state: started
+            enabled: yes
+
+    - name: Install CRIO and K8S on Debian like nodes
+      when: ansible_facts['os_family'] is 'Debian'
+      block:
+        - name: Install CRIO
+          ansible.builtin.apt:
+            name: cri-o
+            state: present
+          register: crio_install
+
+        - name: Exclude CRIO from updates
+          ansible.builtin.dpkg_selections:
+            name: cri-o 
+            selection: hold
+
+        - name: Start and enable CRIO
+          when: crio_install is succeeded
+          ansible.builtin.service:
+            name: crio
+            state: started
+            enabled: yes
+
+        - name: Install K8S Components
+          ansible.builtin.apt:
+            name:
+              - kubectl
+              - kubeadm
+              - kubelet
+              - cri-tools
+            state: present
+          register: k8s_components_install
+
+        - name: Exclude K8S Components from updates
+          when: k8s_components_install is succeeded
+          ansible.builtin.dpkg_selections:
+            name: {{ item  }}
+            selection: hold
+          loop:
+            - kubectl
+            - kubeadm
+            - kubelet
+            - cri-tools
+
+        - name: Start and enable kubelet
+          when: k8s_components_install is succeeded
+          ansible.builtin.service:
+            name: kubelet
+            state: started
+            enabled: yes
+
