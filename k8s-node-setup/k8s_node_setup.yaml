@@ -4,6 +4,13 @@
   tasks:
     - name: Disable SELINUX and install Chrony on RedHat like nodes
       when: ansible_facts["os_family"] == "RedHat"
+
+      handlers:
+        - name: Restart chronyd
+          ansible.builtin.service:
+            name: chronyd
+            state: restarted
+
       block:
         - name: Disable Selinux
           ansible.posix.selinux:
@@ -295,8 +302,3 @@
             state: started
             enabled: true
 
-  handlers:
-    - name: Restart chronyd
-      ansible.builtin.service:
-        name: chronyd
-        state: restarted
