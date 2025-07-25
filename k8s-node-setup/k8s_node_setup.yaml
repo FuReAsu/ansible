@@ -31,13 +31,7 @@
             path: /etc/chrony.conf
             search_string: "server"
             line: "server {{ ntp_server }} iburst"
-          register: chrony_conf
-
-        - name: Restart chrony when config is changed
-          when: chrony_conf is changed
-          ansible.builtin.service:
-            name: chronyd
-            state: restarted
+          notify: Restart chronyd
 
     - name: Install Chrony on Debian like nodes
       when: ansible_facts["os_family"] == "Debian"
@@ -59,13 +53,7 @@
             path: /etc/chrony/chrony.conf
             search_string: "server"
             line: "server {{ ntp_server }} iburst"
-          register: chrony_conf
-
-        - name: Restart chrony when config is changed
-          when: chrony_conf is changed
-          ansible.builtin.service:
-            name: chronyd
-            state: restarted
+          notify: Restart chronyd
 
     - name: Disable firewall on RedHat like nodes
       when: ansible_facts["os_family"] == "RedHat"
@@ -179,7 +167,7 @@
             repo: deb [signed-by=/etc/apt/keyrings/k8s-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ k8s_ver }}/deb/ /
             state: present
             filename: k8s
-          register: K8S_repo_added
+          register: k8s_repo_added
 
         - name: Get CRIO repo gpg key on Debian like nodes
           ansible.builtin.get_url:
@@ -201,10 +189,10 @@
             repo: deb [signed-by=/etc/apt/keyrings/crio-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_ver }}/deb/ /
             state: present
             filename: crio
-          register: CRIO_repo_added
+          register: crio_repo_added
 
         - name: Update apt cache on Debian like nodes
-          when: K8S_repo_added is changed or CRIO_repo_added is changed
+          when: k8s_repo_added is changed or crio_repo_added is changed
           ansible.builtin.apt:
             update_cache: true
 
@@ -306,3 +294,9 @@
             name: kubelet
             state: started
             enabled: true
+
+  handlers:
+    - name: Restart chronyd
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
