@@ -76,22 +76,30 @@
 
     - name: Disable firewall on Debian like nodes
       when: ansible_facts["os_family"] == "Debian"
-      community.general.ufw:
-        state: disabled
-    
+      block:
+        - name: Check if ufw exists
+          ansible.builtin.package_facts:
+            manager: apt
+
+        - name: Disable firewall on Debian like nodes
+          when: "'ufw' in ansible_facts.packages"
+          community.general.ufw:
+            state: disabled
+
     - name: Disable swap on all nodes
       when: ansible_swaptotal_mb > 0
       ansible.builtin.command: swapoff -a
+      changed_when: true
 
     - name: Comment swap from fstab (Persistent) on all nodes
       ansible.builtin.replace:
         path: /etc/fstab
         regexp: '^([^#].*\bswap\b.*)$'
         replace: '# \1'
-        backup: yes
+        backup: true
 
 - name: K8S Prerequisites Kernel Modules and System Config
-  hosts: all
+  hosts: k8s_nodes
   become: true
   tasks:
     - name: Load Kernel Modules on all nodes
@@ -110,7 +118,7 @@
       loop: "{{ sysctl_configurations | dict2items }}"
 
 - name: K8S Installation
-  hosts: all
+  hosts: k8s_nodes
   become: true
   tasks:
     - name: Check if K8S repo already exists on RedHat like nodes
@@ -162,15 +170,16 @@
           when: get_k8s_repo_key is succeeded
           ansible.builtin.shell: |
             gpg --dearmor -o /etc/apt/keyrings/k8s-apt-keyring.gpg /tmp/k8s-apt-keyring.key
-            args:
-              creates: /etc/apt/keyrings/k8s-apt-keyring.gpg
-          changed_when: true
+          args:
+            creates: /etc/apt/keyrings/k8s-apt-keyring.gpg
+          changed_when: false
 
         - name: Add K8S repo on Debian like nodes
           ansible.builtin.apt_repository:
             repo: deb [signed-by=/etc/apt/keyrings/k8s-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ k8s_ver }}/deb/ /
             state: present
             filename: k8s
+          register: K8S_repo_added
 
         - name: Get CRIO repo gpg key on Debian like nodes
           ansible.builtin.get_url:
@@ -183,17 +192,19 @@
           when: get_crio_repo_key is succeeded
           ansible.builtin.shell: |
             gpg --dearmor -o /etc/apt/keyrings/crio-apt-keyring.gpg /tmp/crio-apt-keyring.key
-            args:
-              creates: /etc/apt/keyrings/crio-apt-keyring.key
-          changed_when: true
+          args:
+            creates: /etc/apt/keyrings/crio-apt-keyring.gpg
+          changed_when: false
 
         - name: Add CRIO repo on Debian like nodes
           ansible.builtin.apt_repository:
             repo: deb [signed-by=/etc/apt/keyrings/crio-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_ver }}/deb/ /
             state: present
             filename: crio
+          register: CRIO_repo_added
 
         - name: Update apt cache on Debian like nodes
+          when: K8S_repo_added is changed or CRIO_repo_added is changed
           ansible.builtin.apt:
             update_cache: true
 
