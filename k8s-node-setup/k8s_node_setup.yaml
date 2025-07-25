@@ -155,6 +155,12 @@
     - name: Add K8S and CRIO repo on Debian like nodes
       when: ansible_facts["os_family"] == "Debian"
       block:
+        - name: Ensure gpg is installed on Debian like nodes
+          ansible.builtin.apt:
+            name: gpg
+            state: present
+            update_cache: true
+
         - name: Get K8S repo gpg key on Debian like nodes
           ansible.builtin.get_url:
             url: https://pkgs.k8s.io/core:/stable:/{{ k8s_ver }}/deb/Release.key

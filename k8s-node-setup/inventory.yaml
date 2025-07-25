@@ -13,14 +13,7 @@ k8s_nodes:
         k8s-worker-2:
           ansible_host: 192.168.56.12
           ansible_user: k8sadmin
-    k8s_ubuntu:
-      hosts:
-        k8s-ubuntu-1:
-          ansible_host: 192.168.56.13
-          ansible_user: k8sadmin
-        k8s-ubuntu-2:
-          ansible_host: 192.168.56.14
-          ansible_user: k8sadmin
+
   vars:
     ntp_server: 172.21.0.123
     k8s_ver: v1.33
