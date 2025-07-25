@@ -9,6 +9,15 @@ This ansible playbook is to setup RedHat and Debian family nodes to run kubernet
 
 on the nodes. You have to run the `kubeadm init` command and `kubeadm join` commands on the nodes yourself to create the cluster and add nodes to the cluster.
 
+## Distributions
+
+Below are the distributions that I have run it on and has confirmed to work:
+
+- AlmaLinux 10 
+- CentOS Stream 10
+- Debian Bookworm
+- Ubuntu 24.04
+
 ## What will the playbook do
 
 - Clear prerequisites
