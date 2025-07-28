@@ -1,5 +1,5 @@
 - name: Install packages
-  hosts: ansible_nodes
+  hosts: all
   tasks:
     - name: Install chrony and nslookup on Alma nodes
       when: ansible_facts['os_family'] == 'RedHat'
@@ -16,7 +16,7 @@
           - dnsutils
         state: present
 - name: Setup DNS
-  hosts: ansible_nodes
+  hosts: all
   tasks:
     - name: Check DNS status on Alma nodes
       when: ansible_facts['os_family'] == 'RedHat'
@@ -65,7 +65,7 @@
         create: true
 
 - name: Setup NTP
-  hosts: ansible_nodes
+  hosts: all
   tasks:
     - name: Configure NTP Server for Alma nodes
       when: ansible_facts['os_family'] == 'RedHat'
