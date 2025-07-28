@@ -2,14 +2,14 @@
   hosts: ansible_nodes
   tasks:
     - name: Install chrony and nslookup on Alma nodes
-      when: ansible_facts['distribution'] == 'AlmaLinux'
+      when: ansible_facts['os_family'] == 'RedHat'
       ansible.builtin.dnf:
         name: 
           - chrony
           - bind-utils
         state: present
     - name: Install chrony and nslookup on Ubuntu nodes
-      when: ansible_facts['distribution'] == 'Ubuntu'
+      when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.apt:
         name:
           - chrony
@@ -19,14 +19,14 @@
   hosts: ansible_nodes
   tasks:
     - name: Check DNS status on Alma nodes
-      when: ansible_facts['distribution'] == 'AlmaLinux'
+      when: ansible_facts['os_family'] == 'RedHat'
       ansible.builtin.shell: cat /etc/resolv.conf | grep {{ name_server }}
       register: check_dns_alma
       ignore_errors: yes
       changed_when: false
 
     - name: Setup DNS on Alma nodes
-      when: ansible_facts['distribution'] == 'AlmaLinux' and check_dns_alma is failed
+      when: ansible_facts['os_family'] == 'RedHat' and check_dns_alma is failed
       ansible.builtin.shell: |
         set -e
         con_name=$(nmcli -t --fields=NAME con show --active | awk -F: '{ print $1 }' | head -n 1) 
@@ -36,39 +36,39 @@
       ignore_errors: yes
 
     - name: Resolv.conf fallback for Alama nodes
-      when: ansible_facts['distribution'] == 'AlmaLinux' and nmcli_configure is failed
+      when: ansible_facts['os_family'] == 'RedHat' and nmcli_configure is failed
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
         search_string: 'nameserver'
         line: 'nameserver {{ name_server }}'
 
     - name: Disable Systemd Resolved on Ubuntu nodes
-      when: ansible_facts['distribution'] == 'Ubuntu'
+      when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.service:
         name: systemd-resolved
         state: stopped
       register: systemd_resolved
 
     - name: Delete leftover resolv.conf
-      when: ansible_facts['distribution'] == 'Ubuntu' and systemd_resolved is changed
+      when: ansible_facts['os_family'] == 'Debian' and systemd_resolved is changed
       ansible.builtin.file:
         path: /etc/resolv.conf
         state: absent
 
     - name: Setup DNS on Ubuntu nodes
-      when: ansible_facts['distribution'] == 'Ubuntu'
+      when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.blockinfile:
         path: /etc/resolv.conf
         block: |
           nameserver {{ name_server }} 
-          search lab.local
+          search {{ search_domain  }}
         create: true
 
 - name: Setup NTP
   hosts: ansible_nodes
   tasks:
     - name: Configure NTP Server for Alma nodes
-      when: ansible_facts['distribution'] == 'AlmaLinux'
+      when: ansible_facts['os_family'] == 'RedHat'
       ansible.builtin.lineinfile:
         path: /etc/chrony.conf
         search_string: 'server'
@@ -76,7 +76,7 @@
       register: chrony_config_alma
     
     - name: Configure NTP Server for Ubuntu nodes
-      when: ansible_facts['distribution'] == 'Ubuntu'
+      when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.lineinfile:
         path: /etc/chrony/chrony.conf
         search_string: 'server'
@@ -84,13 +84,13 @@
       register: chrony_config_ubuntu
 
     - name: Reload Chrony on Alma nodes
-      when: chrony_config_alma is changed and ansible_facts['distribution'] == 'AlmaLinux'
+      when: chrony_config_alma is changed and ansible_facts['os_family'] == 'RedHat'
       ansible.builtin.service:
         name: chronyd
         state: reloaded 
 
     - name: Reload Chrony on Ubuntu nodes
-      when: chrony_config_ubuntu is changed and ansible_facts['distribution'] == 'Ubuntu'
+      when: chrony_config_ubuntu is changed and ansible_facts['os_family'] == 'Debian'
       ansible.builtin.service:
         name: chronyd
         state: reloaded

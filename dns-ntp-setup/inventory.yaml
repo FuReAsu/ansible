@@ -22,3 +22,4 @@ ansible_nodes:
   vars: 
     name_server: 192.168.122.1
     ntp_server: 192.168.122.1
+    search_domain: lab.local
