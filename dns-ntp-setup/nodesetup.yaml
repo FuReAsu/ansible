@@ -1,31 +1,32 @@
 - name: Install packages
   hosts: all
   tasks:
-    - name: Install chrony and nslookup on Alma nodes
+    - name: Install chrony and nslookup on RedHat nodes
       when: ansible_facts['os_family'] == 'RedHat'
       ansible.builtin.dnf:
         name: 
           - chrony
           - bind-utils
         state: present
-    - name: Install chrony and nslookup on Ubuntu nodes
+    - name: Install chrony and nslookup on Debian nodes
       when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.apt:
         name:
           - chrony
           - dnsutils
         state: present
+
 - name: Setup DNS
   hosts: all
   tasks:
-    - name: Check DNS status on Alma nodes
+    - name: Check DNS status on RedHat nodes
       when: ansible_facts['os_family'] == 'RedHat'
       ansible.builtin.shell: cat /etc/resolv.conf | grep {{ name_server }}
       register: check_dns_alma
       ignore_errors: yes
       changed_when: false
 
-    - name: Setup DNS on Alma nodes
+    - name: Setup DNS on RedHat nodes
       when: ansible_facts['os_family'] == 'RedHat' and check_dns_alma is failed
       ansible.builtin.shell: |
         set -e
@@ -42,7 +43,7 @@
         search_string: 'nameserver'
         line: 'nameserver {{ name_server }}'
 
-    - name: Disable Systemd Resolved on Ubuntu nodes
+    - name: Disable Systemd Resolved on Debian nodes
       when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.service:
         name: systemd-resolved
@@ -55,7 +56,7 @@
         path: /etc/resolv.conf
         state: absent
 
-    - name: Setup DNS on Ubuntu nodes
+    - name: Setup DNS on Debian nodes
       when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.blockinfile:
         path: /etc/resolv.conf
@@ -66,34 +67,33 @@
 
 - name: Setup NTP
   hosts: all
+  handlers:
+    - name: Restart Chrony
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
   tasks:
-    - name: Configure NTP Server for Alma nodes
+    - name: Start Chronyd on all nodes
+      ansible.builtin.service:
+        name: chronyd
+        state: started
+
+    - name: Configure NTP Server for RedHat nodes
       when: ansible_facts['os_family'] == 'RedHat'
       ansible.builtin.lineinfile:
         path: /etc/chrony.conf
-        search_string: 'server'
-        line: 'server {{ ntp_server }} iburst'
-      register: chrony_config_alma
+        search_string: 'pool'
+        line: 'pool {{ ntp_server }} iburst'
+      notify: Restart Chrony
     
-    - name: Configure NTP Server for Ubuntu nodes
+    - name: Configure NTP Server for Debian nodes
       when: ansible_facts['os_family'] == 'Debian'
       ansible.builtin.lineinfile:
         path: /etc/chrony/chrony.conf
-        search_string: 'server'
-        line: 'server {{ ntp_server }} iburst'
-      register: chrony_config_ubuntu
+        search_string: 'pool'
+        line: 'pool {{ ntp_server }} iburst'
+      notify: Restart Chrony
 
-    - name: Reload Chrony on Alma nodes
-      when: chrony_config_alma is changed and ansible_facts['os_family'] == 'RedHat'
-      ansible.builtin.service:
-        name: chronyd
-        state: reloaded 
-
-    - name: Reload Chrony on Ubuntu nodes
-      when: chrony_config_ubuntu is changed and ansible_facts['os_family'] == 'Debian'
-      ansible.builtin.service:
-        name: chronyd
-        state: reloaded
     - name: Set timezone on all nodes
       ansible.builtin.file:
         src: /usr/share/zoneinfo/Asia/Yangon
