@@ -9,9 +9,14 @@
         state: restarted
 
   tasks:
-    - name: Disable SELINUX and install Chrony on RedHat like nodes
-      when: ansible_facts["os_family"] == "RedHat"
+    - name: Get SELINUX status
+      ansible.builtin.command: getenforce
+      register: selinux_status
+      changed_when: false
+      failed_when: false
 
+    - name: Disable Selinux
+      when: ansible_facts["os_family"] == "RedHat" and selinux_status.stdout != "Disabled"
       block:
         - name: Disable Selinux
           ansible.posix.selinux:
@@ -23,6 +28,9 @@
             search_string: "SELINUX=enforcing"
             line: "SELINUX=permissive"
 
+    - name: Install Chrony on RedHat like nodes
+      when: ansible_facts["os_family"] == "RedHat" 
+      block:
         - name: Install Chrony on RedHat like hosts
           ansible.builtin.dnf:
             name: chrony
@@ -64,11 +72,17 @@
           notify: Restart chronyd
 
     - name: Disable firewall on RedHat like nodes
-      when: ansible_facts["os_family"] == "RedHat"
-      ansible.builtin.service:
-        name: firewalld
-        state: stopped
-        enabled: false
+      block:
+        - name: Check if firewalld exists
+          ansible.builtin.package_facts:
+            manager: auto
+
+        - name: Disable firewall on RedHat like nodes
+          when: "'firewalld' in ansible_facts.packages"
+          ansible.builtin.service:
+            name: firewalld
+            state: stopped
+            enabled: false
 
     - name: Disable firewall on Debian like nodes
       when: ansible_facts["os_family"] == "Debian"
@@ -86,8 +100,15 @@
       when: ansible_swaptotal_mb > 0
       ansible.builtin.command: swapoff -a
       changed_when: true
+      failed_when: false
+
+    - name: Check if /etc/fstab exists
+      ansible.builtin.stat:
+        path: /etc/fstab
+      register: fstab_file
 
     - name: Comment swap from fstab (Persistent) on all nodes
+      when: fstab_file.stat.exists
       ansible.builtin.replace:
         path: /etc/fstab
         regexp: '^([^#].*\bswap\b.*)$'
