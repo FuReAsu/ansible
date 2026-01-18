@@ -9,6 +9,16 @@ This ansible playbook is to setup RedHat and Debian family nodes to run kubernet
 
 on the nodes. You have to run the `kubeadm init` command and `kubeadm join` commands on the nodes yourself to create the cluster and add nodes to the cluster.
 
+## How to use it
+
+You just need to have ansible installed and ssh access to the nodes.
+Edit the [`inventory.yaml`](inventory.yaml) file to configure hosts and variables.
+
+To run the ansible playbook, execute the following command:
+```bash
+ansible-playbook main.yaml -i inventory.yaml -K
+```
+
 ## Distributions
 
 Below are the distributions that I have run it on and has confirmed to work:
