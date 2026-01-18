@@ -1,23 +1,26 @@
 k8s_nodes:
   children:
-    k8s_masters:
+    k8s_control_plane:
       hosts:
-        k8s-master-1:
-          ansible_host: 192.168.56.10
+        k8s-control-plane-1:
+          ansible_host: 192.168.64.20
           ansible_user: k8sadmin
     k8s_workers:
       hosts:
         k8s-worker-1:
-          ansible_host: 192.168.56.11
+          ansible_host: 192.168.64.21
           ansible_user: k8sadmin
         k8s-worker-2:
-          ansible_host: 192.168.56.12
+          ansible_host: 192.168.64.22
+          ansible_user: k8sadmin
+        k8s-worker-3:
+          ansible_host: 192.168.64.23
           ansible_user: k8sadmin
 
   vars:
-    ntp_server: 172.21.0.123
-    k8s_ver: v1.33
-    crio_ver: v1.33
+    ntp_server: 192.168.122.1
+    k8s_ver: v1.34
+    crio_ver: v1.34
     kernel_modules_to_load:
       - overlay
       - br_netfilter
@@ -27,3 +30,7 @@ k8s_nodes:
       net.ipv4.ip_forward: "1"
       net.bridge.bridge-nf-call-ip6tables: "1"
       net.bridge.bridge-nf-call-iptables: "1" 
+    enable_iscsi: true
+    kubeadm_pod_network_cidr: "10.240.0.0/16"
+    kubeadm_service_cidr: "10.96.0.0/12"
+    kubeadm_control_plane_endpoint: "test-control.k8s.local"
