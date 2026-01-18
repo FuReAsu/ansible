@@ -30,6 +30,9 @@ Below are the distributions that I have run it on and has confirmed to work:
 - Add CRI-O and K8S repositories
 - Install CRI-O and K8S components
 - Exclude CRI-O and K8S components from updates to keep them from being updated unintentionally.
+- Initializes the kubernetes cluster with kubeadm
+    - generates kubeadm join tokens and commands
+    - run join commands on worker nodes
 
 > The playbook is designed for initial installs. It can't handle upgrades since they aren't tested yet. What it means is that changing the ***crio_ver*** and ***k8s_ver*** variables won't upgrade the cluster. There will be separate playbook for upgrades later.
 
@@ -42,6 +45,14 @@ Below are the distributions that I have run it on and has confirmed to work:
 | crio_ver | CRI-O major release version | v1.3x | string |
 | kernel_modules_to_load | Defines which kernel modules to load | list of kernel module names | list |
 | sysctl_configurations | Defines which sysctl configurations to apply | dictionary of sysctl conf key value pairs | dict |
+|enable_iscsi|Whether to install iscsi or not | true or false | boolean|
+|kubeadm_image_repository | kubeadm option for custom image repository | example.registry.com | string|
+|kubeadm_pod_network_cidr | kubeadm option for pod network cidr | X.X.X.X/XX (subnet/mask) | string |
+|kubeadm_service_network_cidr | kubeadm option for service network cidr | X.X.X.X/XX (subnet/mask) | string |
+|kubeadm_control_plane_endpoint | kubeadm option for control plane endpoint | IP or domain name | string |
+|kubeadm_service_dns_domain | kubeadm option for sevice dns domain | domain name | string |
+
+The kubeadm options are optional. Default options will be used if they are not defined in the [`inventory.yaml`](inventory.yaml) file.
 
 ## Somethings to keep in mind
 
