@@ -1,0 +1,108 @@
+- name: K8S Prerequisites - NTP, SE, and Firewall
+  hosts: k8s_nodes
+  become: true
+
+  handlers:
+    - name: Restart chronyd
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
+
+  tasks:
+    - name: Get SELINUX status
+      ansible.builtin.command: getenforce
+      register: selinux_status
+      changed_when: false
+      failed_when: false
+
+    - name: Disable Selinux
+      when: ansible_facts["os_family"] == "RedHat" and selinux_status.stdout != "Disabled"
+      block:
+        - name: Disable Selinux
+          ansible.posix.selinux:
+            state: disabled
+        - name: Disable Selinux (Persistent)
+          ansible.builtin.lineinfile:
+            path: /etc/selinux/config
+            search_string: "SELINUX=enforcing"
+            line: "SELINUX=permissive"
+
+    - name: Install Chrony on RedHat like nodes
+      when: ansible_facts["os_family"] == "RedHat" 
+      block:
+        - name: Install Chrony on RedHat like hosts
+          ansible.builtin.dnf:
+            name: chrony
+            state: present
+        - name: Start and enable Chrony Service on RedHat like nodes
+          ansible.builtin.service:
+            name: chronyd
+            state: started
+            enabled: true
+        - name: Add ntp server address on RedHat like nodes
+          ansible.builtin.lineinfile:
+            path: /etc/chrony.conf
+            search_string: "server"
+            line: "server {{ ntp_server }} iburst"
+          notify: Restart chronyd
+
+    - name: Install Chrony on Debian like nodes
+      when: ansible_facts["os_family"] == "Debian"
+      block:
+        - name: Install Chrony on Debian like hosts
+          ansible.builtin.apt:
+            name: chrony
+            state: present
+        - name: Start and enable Chrony Service on Debian like nodes
+          ansible.builtin.service:
+            name: chronyd
+            state: started
+            enabled: true
+        - name: Add ntp server address on Debian like nodes
+          when: ansible_facts["os_family"] == "Debian"
+          ansible.builtin.lineinfile:
+            path: /etc/chrony/chrony.conf
+            search_string: "server"
+            line: "server {{ ntp_server }} iburst"
+          notify: Restart chronyd
+
+    - name: Disable firewall on RedHat like nodes
+      block:
+        - name: Check if firewalld exists
+          ansible.builtin.package_facts:
+            manager: auto
+        - name: Disable firewall on RedHat like nodes
+          when: "'firewalld' in ansible_facts.packages"
+          ansible.builtin.service:
+            name: firewalld
+            state: stopped
+            enabled: false
+
+    - name: Disable firewall on Debian like nodes
+      when: ansible_facts["os_family"] == "Debian"
+      block:
+        - name: Check if ufw exists
+          ansible.builtin.package_facts:
+            manager: apt
+        - name: Disable firewall on Debian like nodes
+          when: "'ufw' in ansible_facts.packages"
+          community.general.ufw:
+            state: disabled
+
+    - name: Disable swap on all nodes
+      when: ansible_swaptotal_mb > 0
+      ansible.builtin.command: swapoff -a
+      changed_when: true
+      failed_when: false
+
+    - name: Check if /etc/fstab exists
+      ansible.builtin.stat:
+        path: /etc/fstab
+      register: fstab_file
+    - name: Comment swap from fstab (Persistent) on all nodes
+      when: fstab_file.stat.exists
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^([^#].*\bswap\b.*)$'
+        replace: '# \1'
+        backup: true

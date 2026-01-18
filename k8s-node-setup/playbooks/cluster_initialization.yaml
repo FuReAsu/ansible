@@ -1,0 +1,41 @@
+- name: K8S Cluster Initialization
+  hosts: k8s_nodes
+  become: true
+  tasks:
+    - name: Check if node has joined the cluster
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubernetes_joined
+    - name: Initialize kubernetes cluster on the primary control plane node
+      when: 
+        - inventory_hostname == groups['k8s_control_plane'][0]
+        - not kubernetes_joined.stat.exists
+      ansible.builtin.shell: >
+        kubeadm init
+        --upload-certs
+        --cri-socket=unix:///var/run/crio/crio.sock
+        {{ '--image-repository=' + (kubeadm_image_repository | default('')) }}
+        {{ '--pod-network-cidr=' + (kubeadm_pod_network_cidr | default('')) }}
+        {{ '--service-cidr=' + (kubeadm_service_cidr | default('')) }}
+        {{ '--control-plane-endpoint=' + (kubeadm_control_plane_endpoint | default('')) }}
+        {{ '--service-dns-domain=' + (kubeadm_service_dns_domain | default('')) }}
+
+    - name: Generate worker join token
+      when: inventory_hostname == groups['k8s_control_plane'][0]
+      ansible.builtin.command: kubeadm token generate
+      register: worker_join_token
+
+    - name: Generate worker join command
+      when: inventory_hostname == groups['k8s_control_plane'][0]
+      ansible.builtin.command: kubeadm token create --print-join-command {{ worker_join_token.stdout }}
+      register: worker_join_command
+
+    - name: Run join command on worker nodes
+      when: 
+        - inventory_hostname in groups['k8s_workers']
+        - not kubernetes_joined.stat.exists
+      ansible.builtin.command: "{{ hostvars[groups['k8s_control_plane'][0]]['worker_join_command']['stdout'] }}"
+    
+    - name: Delete the join token
+      when: inventory_hostname == groups['k8s_control_plane'][0]
+      ansible.builtin.command: kubeadm token delete {{ worker_join_token.stdout }} 
