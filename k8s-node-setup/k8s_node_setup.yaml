@@ -281,6 +281,12 @@
             state: started
             enabled: true
 
+        - name: Install iscsi initiator on RedHat like nodes
+          ansible.builtin.dnf:
+            name:
+              - iscsi-initiator-utils
+            state: present
+
     - name: Install CRIO and K8S on Debian like nodes
       when: ansible_facts["os_family"] == "Debian"
       block:
@@ -329,3 +335,9 @@
             name: kubelet
             state: started
             enabled: true
+
+        - name: Install iscsi initiator on Debian like nodes
+          ansible.builtin.apt:
+            name:
+              - open-iscsi
+            state: present
