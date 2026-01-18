@@ -1,13 +1,15 @@
-# Kubernetes Node Setup 
+# Kubernetes Node Setup & Installation
 
-This ansible playbook is to setup RedHat and Debian family nodes to run kubernetes with cri-o. The playbook only automates up to the installation of kubernetes components:
+This ansible playbook is to setup RedHat and Debian family nodes to run kubernetes with cri-o. The playbook automates the installation of kubernetes components and the cluster initialization:
 
 - kubeadm
 - kubelet
 - kubectl
 - cri-o
 
-on the nodes. You have to run the `kubeadm init` command and `kubeadm join` commands on the nodes yourself to create the cluster and add nodes to the cluster.
+The play book will run the `kubeadm init` command on the control plane node and run the `kubeadm join` command on the worker nodes to join them to the cluster.
+
+After that, all you have to do is gain access to the cluster by exporting the `/etc/kubernetes/admin.conf` file out of the control plane node.
 
 ## How to use it
 
