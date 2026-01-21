@@ -31,6 +31,7 @@ k8s_nodes:
       net.bridge.bridge-nf-call-ip6tables: "1"
       net.bridge.bridge-nf-call-iptables: "1" 
     enable_iscsi: true
+    enable_nfs: true
     kubeadm_pod_network_cidr: "10.240.0.0/16"
     kubeadm_service_cidr: "10.96.0.0/12"
     kubeadm_control_plane_endpoint: "test-control.k8s.local"

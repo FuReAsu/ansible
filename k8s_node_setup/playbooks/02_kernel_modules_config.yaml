@@ -36,3 +36,19 @@
             name: iscsid
             state: started
             enabled: true
+
+    - name: Install NFS client on nodes
+      when: enable_nfs | default(false) | bool
+      block:
+        - name: Install NFS client on Debian like nodes
+          when: ansible_facts["os_family"] == "Debian"
+          ansible.builtin.apt:
+            name:
+              - nfs-common
+            state: present
+        - name: Install NFS client on RedHat like nodes
+          when: ansible_facts["os_family"] == "RedHat"
+          ansible.builtin.dnf:
+            name:
+              - nfs-utils
+            state: present
